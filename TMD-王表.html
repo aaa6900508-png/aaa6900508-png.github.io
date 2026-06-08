@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚔️ TMD我來了 - 血盟王表倒數器 ⚔️</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            background-color: #121212;
+            color: #fff;
+            max-width: 950px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #1e1e1e;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #333;
+            font-size: 15px;
+            transition: background-color 0.5s ease;
+        }
+        th {
+            background-color: #2a2a2a;
+            color: #ffd700;
+        }
+        .row-warning { background-color: #b37400 !important; color: #fff !important; }
+        .row-danger { background-color: #990000 !important; color: #fff !important; animation: blink-red 1.5s infinite; }
+        .row-success { background-color: #006622 !important; color: #00ff00 !important; font-weight: bold; }
+
+        @keyframes blink-red {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .btn {
+            background-color: #ffd700; color: #000; border: none; padding: 6px 12px;
+            cursor: pointer; font-weight: bold; border-radius: 4px; margin: 2px;
+        }
+        .btn:hover { background-color: #ffaa00; }
+        .btn-danger { background-color: #ff4444; color: white; border: none; }
+        .btn-danger:hover { background-color: #cc0000; }
+        .btn-sm { padding: 4px 8px; font-size: 13px; }
+        
+        .form-group {
+            background: #1e1e1e; padding: 15px; border-radius: 5px; border: 1px solid #333; margin-bottom: 15px;
+        }
+        .input-row {
+            display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px;
+        }
+        input {
+            padding: 8px; background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 4px;
+        }
+        label { font-size: 14px; color: #ccc; }
+        .sync-status { text-align: right; color: #888; font-size: 12px; margin-top: 5px; }
+
+        .equip-table td {
+            text-align: left;
+            padding-left: 20px;
+        }
+        .equip-tag {
+            background-color: #333;
+            color: #ffd700;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-right: 8px;
+            border: 1px solid #555;
+            display: inline-flex;
+            align-items: center;
+            margin-top: 4px;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+        .tag-del-btn {
+            margin-left: 6px;
+            color: #ff4444;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 0 4px;
+            border-radius: 2px;
+            transition: background 0.2s;
+        }
+        .tag-del-btn:hover {
+            background-color: #ff4444;
+            color: #fff;
+        }
+        .editable-date {
+            color: #ffaa00;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px dashed #555;
+            background-color: #252525;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+        .editable-date:hover {
+            background-color: #ffd700;
+            color: #000;
+            border-color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⚔️ TMD我來了 - 血盟王表倒數器 ⚔️</h1>
+
+    <!-- 裝備出貨優先順序表 -->
+    <div class="form-group">
+        <h3>💎 裝備出貨優先順序表 (雲端同步版：時間越久越往上，點擊裝備旁的 x 可單獨刪除)</h3>
+        <table class="equip-table" style="margin-top: 10px; margin-bottom: 10px;">
+            <thead>
+                <tr>
+                    <th style="width: 140px; text-align: center;">順序 / 日期 (可改)</th>
+                    <th>預配裝備項目 (支援 Ctrl+F 搜尋)</th>
+                    <th style="width: 100px; text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="equipTableBody">
+                <tr><td colspan="3" style="text-align:center; color:#888;">正在從雲端載入裝備表...</td></tr>
+            </tbody>
+        </table>
+
+        <!-- 快速追加裝備的輸入列 -->
+        <div class="input-row" style="border-top: 1px solid #333; padding-top: 12px; margin-top: 12px;">
+            <b style="color: #ffd700;">➕ 快速追加裝備：</b>
+            <input type="text" id="newEquipDate" placeholder="例如: 6/6" style="width: 80px; text-align: center;">
+            <input type="text" id="newEquipItems" placeholder="輸入裝備名稱 (多個請用頓號或逗號隔開，如：泰坦皮帶)" style="flex: 1; min-width: 250px;">
+            <button class="btn btn-sm" onclick="addEquipRow()">確認追加</button>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <h3>⚡ 快速新增王怪 (如要快速找王Ctrl+F)</h3>
+        <div class="input-row">
+            <input type="text" id="bossName" placeholder="王怪名稱" style="width: 160px;">
+            <span style="color: #ffd700;">|</span>
+            <label>💀 死亡日期時間 :</label>
+            <input type="datetime-local" id="killTime">
+            <label>⏳ 重生週期:</label>
+            <input type="number" id="cdHours" placeholder="時" min="0" style="width: 50px;">
+            <label>小時</label>
+            <input type="number" id="cdMins" placeholder="分" min="0" style="width: 50px;">
+            <label>分</label>
+            <button class="btn" id="addBtn" onclick="addBossByCd()">計算並加入王表</button>
+        </div>
+        <div class="sync-status" id="syncStatus">雲端連線中...</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>BOSS名稱</th>
+                <th>重生週期</th>
+                <th>上次擊殺時間</th>
+                <th>預計重生時間</th>
+                <th>倒數計時</th>
+                <th>狀態</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="bossTableBody">
+            <!-- 雲端資料載入 -->
+        </tbody>
+    </table>
+
+    <script>
+        // 【請在此處替換成你重新部署後獲得的新 GAS 網址】
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzTvrZMuk_NLwlU5o5OArHc3b2kiO51jecabyQLzO0av-XJwlFjVMKdUmOjr6JNs6_gYA/exec';
+
+        let bossList = [];
+        let equipList = []; 
+
+        function normalizeDateStr(str) {
+            return str.toString().replace(/\s+/g, '').replace(/[.\-月]/g, '/').replace(/日/g, '');
+        }
+
+        // 排序與渲染裝備表
+        function renderEquipTable() {
+            const tbody = document.getElementById('equipTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (equipList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">目前沒有任何裝備分配記錄。</td></tr>';
+                return;
+            }
+
+            // 依日期從舊到新排序 (時間越久越往上)
+            equipList.sort((a, b) => {
+                const parseToTimestamp = (dateStr) => {
+                    if (!dateStr) return Infinity;
+                    if (dateStr.toString().includes('T')) {
+                        const d = new Date(dateStr);
+                        return isNaN(d.getTime()) ? Infinity : d.getTime();
+                    }
+                    const matches = dateStr.toString().replace(/\s+/g, '').match(/^(\d+)[/\-月](\d+)/);
+                    if (matches) {
+                        const now = new Date();
+                        const d = new Date(now.getFullYear(), parseInt(matches[1], 10) - 1, parseInt(matches[2], 10));
+                        return d.getTime();
+                    }
+                    return Infinity; 
+                };
+                return parseToTimestamp(a.date) - parseToTimestamp(b.date);
+            });
+
+            equipList.forEach((equip, rowIndex) => {
+                let displayDate = equip.date;
+                if (displayDate && displayDate.toString().includes('T')) {
+                    const d = new Date(displayDate);
+                    if (!isNaN(d.getTime())) {
+                        displayDate = (d.getMonth() + 1) + '/' + d.getDate();
+                    }
+                } else if (displayDate) {
+                    const matches = displayDate.toString().replace(/\s+/g, '').match(/^(\d+)[/\-月](\d+)/);
+                    if (matches) {
+                        displayDate = parseInt(matches[1], 10) + '/' + parseInt(matches[2], 10);
+                    }
+                }
+
+                const tr = document.createElement('tr');
+                const validItems = equip.items ? equip.items.filter(item => item && item.trim().length > 0) : [];
+                if (validItems.length === 0) return;
+
+                // 修正：移除屬性中的 event 物件傳遞，改用內建處理機制防冒泡
+                const tagsHtml = validItems.map((item, itemIndex) => {
+                    return '<span class="equip-tag">' + item + 
+                           '<span class="tag-del-btn" onclick="deleteSingleItem(window.event, ' + rowIndex + ', ' + itemIndex + ', \'' + item + '\')">×</span>' + 
+                           '</span>';
+                }).join('');
+                
+                tr.innerHTML = `
+                    <td style="text-align: center;">
+                        <span class="editable-date" onclick="editEquipDate(${rowIndex}, this)">${displayDate}</span>
+                    </td>
+                    <td>${tagsHtml}</td>
+                    <td style="text-align: center; padding-left: 0;">
+                        <button class="btn btn-danger btn-sm" onclick="deleteEquipRow(${rowIndex})">整列刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 同步裝備資料到雲端
+        async function saveEquipsToCloud() {
+            const statusEl = document.getElementById('syncStatus');
+            if (statusEl) statusEl.innerText = '⏳ 正在同步裝備至雲端...';
+            try {
+                await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'saveEquips', data: equipList })
+                });
+                setTimeout(fetchCloudData, 800);
+            } catch (err) {
+                if (statusEl) statusEl.innerText = '🔴 裝備同步失敗！';
+            }
+        }
+
+        // 單獨刪除裝備
+        function deleteSingleItem(e, rowIndex, itemIndex, itemName) {
+            if (e && e.stopPropagation) {
+                e.stopPropagation();
+            } else if (window.event) {
+                window.event.cancelBubble = true;
+            }
+            if (confirm('確定要刪除裝備【' + itemName + '】嗎？')) {
+                equipList[rowIndex].items.splice(itemIndex, 1);
+                if (equipList[rowIndex].items.length === 0) {
+                    equipList.splice(rowIndex, 1);
+                }
+                renderEquipTable();
+                saveEquipsToCloud();
+            }
+        }
+
+        // 追加裝備
+        function addEquipRow() {
+            const dateInput = document.getElementById('newEquipDate').value.trim();
+            const itemsInput = document.getElementById('newEquipItems').value.trim();
+
+            if (!dateInput || !itemsInput) {
+                alert('請填寫完整的日期與裝備內容！');
+                return;
+            }
+
+            const newItems = itemsInput.split(/[,，、\s]+/).filter(item => item.length > 0);
+            const normalizedNewDate = normalizeDateStr(dateInput);
+            const existingIndex = equipList.findIndex(e => normalizeDateStr(e.date) === normalizedNewDate);
+
+            if (existingIndex !== -1) {
+                let combinedItems = equipList[existingIndex].items.concat(newItems);
+                equipList[existingIndex].items = [...new Set(combinedItems)];
+            } else {
+                equipList.push({ date: dateInput, items: newItems });
+            }
+
+            document.getElementById('newEquipDate').value = '';
+            document.getElementById('newEquipItems').value = '';
+            renderEquipTable();
+            saveEquipsToCloud();
+        }
+
+        // 整列刪除
+        function deleteEquipRow(index) {
+            if (confirm('確定要刪除此日期整列的裝備記錄嗎？')) {
+                equipList.splice(index, 1);
+                renderEquipTable();
+                saveEquipsToCloud();
+            }
+        }
+
+        // 修改日期
+        function editEquipDate(index, element) {
+            const currentDate = element.innerText;
+            const newDate = prompt("請修改此裝備組的日期：", currentDate);
+            if (newDate !== null) {
+                const trimmed = newDate.trim();
+                if (trimmed) {
+                    equipList[index].date = trimmed;
+                    renderEquipTable(); 
+                    saveEquipsToCloud();
+                }
+            }
+        }
+
+        // 讀取雲端所有資料
+        async function fetchCloudData() {
+            const statusEl = document.getElementById('syncStatus');
+            try {
+                const res = await fetch(`${GAS_WEB_APP_URL}?action=read`);
+                const result = await res.json();
+                
+                bossList = result.bosses || [];
+                renderTable();
+
+                equipList = result.equips || [];
+                renderEquipTable();
+
+                if (statusEl) statusEl.innerText = '🟢 雲端資料同步成功 (每 5 秒自動重整)';
+            } catch (err) {
+                if (statusEl) statusEl.innerText = '🔴 雲端同步失敗，請檢查網路';
+            }
+        }
+
+        function format24Hour(timestamp, includeSeconds = false) {
+            if (!timestamp) return '--/-- --:--';
+            const date = new Date(parseInt(timestamp, 10));
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const hrs = String(date.getHours()).padStart(2, '0');
+            const mins = String(date.getMinutes()).padStart(2, '0');
+            if (includeSeconds) {
+                const secs = String(date.getSeconds()).padStart(2, '0');
+                return `${mm}/${dd} ${hrs}:${mins}:${secs}`;
+            }
+            return `${mm}/${dd} ${hrs}:${mins}`;
+        }
+
+        function setDefaultTimes() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hrs = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            const killTimeInput = document.getElementById('killTime');
+            if (killTimeInput) killTimeInput.value = `${year}-${month}-${day}T${hrs}:${mins}`;
+        }
+
+        async function saveToCloud(action, bossData) {
+            const statusEl = document.getElementById('syncStatus');
+            if (statusEl) statusEl.innerText = '⏳ 正在同步王怪至雲端...';
+            try {
+                await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, data: bossData })
+                });
+                setTimeout(fetchCloudData, 800);
+            } catch (err) {
+                if (statusEl) statusEl.innerText = '🔴 王怪寫入失敗！';
+            }
+        }
+
+        function addBossByCd() {
+            const name = document.getElementById('bossName').value.trim() || "未命名王怪";
+            const killTimeStr = document.getElementById('killTime').value; 
+            const cdH = parseInt(document.getElementById('cdHours').value, 10) || 0;
+            const cdM = parseInt(document.getElementById('cdMins').value, 10) || 0;
+
+            if (!killTimeStr || (cdH === 0 && cdM === 0)) {
+                alert('請填寫完整資訊！');
+                return;
+            }
+
+            let killTimestamp = new Date(killTimeStr).getTime();
+            let respawnTimestamp = killTimestamp + (cdH * 60 * 60 * 1000) + (cdM * 60 * 1000);
+
+            const existingBoss = bossList.find(b => b.name === name);
+            if (existingBoss) {
+                if (confirm(`⚠️ 偵測到已有相同的 BOSS 名稱【${name}】！\n是否要覆蓋時間？`)) {
+                    existingBoss.lastKill = killTimestamp;
+                    existingBoss.nextRespawn = respawnTimestamp;
+                    existingBoss.cdH = cdH;
+                    existingBoss.cdM = cdM;
+                    saveToCloud('update', existingBoss);
+                    clearInputs();
+                    return;
+                } else { return; }
+            }
+
+            const bossData = { id: Date.now(), name: name, lastKill: killTimestamp, nextRespawn: respawnTimestamp, cdH: cdH, cdM: cdM };
+            saveToCloud('write', bossData);
+            clearInputs();
+        }
+
+        function clearInputs() {
+            document.getElementById('bossName').value = '';
+            document.getElementById('cdHours').value = '';
+            document.getElementById('cdMins').value = '';
+            setDefaultTimes(); 
+        }
+
+        function killBossRefresh(id) {
+            const now = Date.now();
+            const boss = bossList.find(b => b.id == id);
+            if (boss) {
+                const cdH = parseInt(boss.cdH, 10) || 0;
+                const cdM = parseInt(boss.cdM, 10) || 0;
+                boss.lastKill = now;
+                boss.nextRespawn = now + (cdH * 60 * 60 * 1000) + (cdM * 60 * 1000);
+                saveToCloud('update', boss);
+            }
+        }
+
+        function deleteBoss(id) {
+            if(confirm('確定刪除此隻王怪嗎？')) {
+                saveToCloud('delete', { id: id });
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('bossTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            const sortedList = [...bossList].sort((a, b) => a.nextRespawn - b.nextRespawn);
+
+            sortedList.forEach(boss => {
+                const tr = document.createElement('tr');
+                tr.id = `boss-row-${boss.id}`;
+                const killTimeStr = format24Hour(boss.lastKill, true);
+                const respawnTimeStr = format24Hour(boss.nextRespawn, false);
+
+                tr.innerHTML = `
+                    <td><strong>${boss.name}</strong></td>
+                    <td>${boss.cdH}時${boss.cdM}分</td>
+                    <td>${killTimeStr}</td>
+                    <td><span style="color: #ffd700; font-weight:bold;">${respawnTimeStr}</span></td>
+                    <td id="timer-${boss.id}">--</td>
+                    <td id="status-${boss.id}">--</td>
+                    <td>
+                        <button class="btn" onclick="killBossRefresh(${boss.id})">⚔️ 擊殺 (重算)</button>
+                        <button class="btn btn-danger" onclick="deleteBoss(${boss.id})">刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            updateTimers();
+        }
+
+        function updateTimers() {
+            const now = Date.now();
+            bossList.forEach(boss => {
+                const targetRow = document.getElementById(`boss-row-${boss.id}`);
+                const timerEl = document.getElementById(`timer-${boss.id}`);
+                const statusEl = document.getElementById(`status-${boss.id}`);
+                if (!targetRow || !timerEl || !statusEl) return;
+
+                targetRow.className = '';
+                const timeLeft = parseInt(boss.nextRespawn, 10) - now;
+
+                if (timeLeft <= 0) {
+                    targetRow.classList.add('row-success');
+                    timerEl.innerText = "00:00:00";
+                    statusEl.innerHTML = "💥 畫面上！";
+                } else {
+                    const minsLeft = timeLeft / (1000 * 60);
+                    if (minsLeft <= 3) {
+                        targetRow.classList.add('row-danger');
+                        statusEl.innerHTML = "🚨 快點就位";
+                    } else if (minsLeft <= 10) {
+                        targetRow.classList.add('row-warning');
+                        statusEl.innerHTML = "⚠️ 準備出王";
+                    } else {
+                        statusEl.innerHTML = "⏳ 倒數中";
+                    }
+                    const hrs = Math.floor(timeLeft / (1000 * 60 * 60));
+                    const mins = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const secs = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                    const pad = (num) => String(num).padStart(2, '0');
+                    timerEl.innerText = `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+                }
+            });
+        }
+
+        // 初始化
+        setDefaultTimes();
+        fetchCloudData(); 
+        setInterval(updateTimers, 1000);
+        setInterval(fetchCloudData, 5000); 
+    </script>
+</body>
+</html>
