@@ -65,7 +65,7 @@
             padding: 8px; background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 4px;
         }
         label { font-size: 14px; color: #ccc; }
-        .sync-status { text-align: right; color: #888; font-size: 12px; margin-top: 5px; }
+        .sync-status { text-align: right; color: #888; font-size: 12px; margin-top: 5px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 
         /* === 裝備出貨優先順序表：縮小優化版樣式 === */
         .equip-table td {
@@ -122,6 +122,23 @@
             color: #000;
             border-color: #ffd700;
         }
+
+        /* 手機版響應式優化 */
+        @media screen and (max-width: 600px) {
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            .input-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            input, button {
+                width: 100% !important;
+                margin: 2px 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -165,7 +182,10 @@
             <label>分</label>
             <button class="btn" id="addBtn" onclick="addBossByCd()">計算並加入王表</button>
         </div>
-        <div class="sync-status" id="syncStatus">雲端連線中...</div>
+        <div class="sync-status">
+            <button class="btn btn-sm" style="background:#444; color:#fff;" onclick="fetchCloudData()">🔄 立即同步</button>
+            <span id="syncStatus">雲端連線中...</span>
+        </div>
     </div>
 
     <table>
@@ -174,14 +194,14 @@
                 <th>BOSS名稱 (可改)</th>
                 <th>重生週期</th>
                 <th>上次擊殺時間</th>
-                <th>預計重生時間</th>
+                <th>預計重生時間 (可改)</th>
                 <th>倒數計時</th>
                 <th>狀態</th>
                 <th>操作</th>
             </tr>
         </thead>
         <tbody id="bossTableBody">
-            </tbody>
+        </tbody>
     </table>
 
     <script>
@@ -287,7 +307,7 @@
             }
         }
 
-        // 單舊刪除裝備
+        // 單個刪除裝備
         function deleteSingleItem(e, rowIndex, itemIndex, itemName) {
             if (e && e.stopPropagation) {
                 e.stopPropagation();
@@ -447,7 +467,7 @@
             clearInputs();
         }
 
-        // 🌟 新增：修改王怪名稱功能
+        // 修改王怪名稱功能
         function editBossName(id, currentName) {
             const newName = prompt("請輸入新的王怪名稱：", currentName);
             if (newName !== null) {
@@ -459,6 +479,26 @@
                         saveToCloud('update', boss);
                     }
                 }
+            }
+        }
+
+        // 手動修改預計重生時間功能
+        function editRespawnTime(id, currentTimestamp) {
+            const currentStr = format24Hour(currentTimestamp, false);
+            const newTimeStr = prompt("請直接手動修改【預計重生時間】\n格式範例: 06/10 18:30", currentStr);
+            if (newTimeStr !== null) {
+                const matches = newTimeStr.trim().match(/(\d+)[/\-](\d+)\s+(\d+):(\d+)/);
+                if (matches) {
+                    const now = new Date();
+                    const targetDate = new Date(now.getFullYear(), parseInt(matches[1],10)-1, parseInt(matches[2],10), parseInt(matches[3],10), parseInt(matches[4],10));
+                    if (!isNaN(targetDate.getTime())) {
+                        const boss = bossList.find(b => b.id == id);
+                        if (boss) {
+                            boss.nextRespawn = targetDate.getTime();
+                            saveToCloud('update', boss);
+                        }
+                    } else { alert('時間解析錯誤，請重試！'); }
+                } else { alert('格式不正確！請務必依照【月份/日期 小時:分鐘】格式輸入，例如: 06/10 18:30'); }
             }
         }
 
@@ -499,12 +539,11 @@
                 const killTimeStr = format24Hour(boss.lastKill, true);
                 const respawnTimeStr = format24Hour(boss.nextRespawn, false);
 
-                // 將王怪名稱改成點擊可觸發修改的 span
                 tr.innerHTML = `
                     <td><span class="editable-boss-name" onclick="editBossName(${boss.id}, '${boss.name.replace(/'/g, "\\'")}')">${boss.name}</span></td>
                     <td>${boss.cdH}時${boss.cdM}分</td>
                     <td>${killTimeStr}</td>
-                    <td><span style="color: #ffd700; font-weight:bold;">${respawnTimeStr}</span></td>
+                    <td><span class="editable-boss-name" style="color: #ffd700;" onclick="editRespawnTime(${boss.id}, ${boss.nextRespawn})">${respawnTimeStr}</span></td>
                     <td id="timer-${boss.id}">--</td>
                     <td id="status-${boss.id}">--</td>
                     <td>
