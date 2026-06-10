@@ -26,10 +26,10 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
         th, td {
-            padding: 12px;
+            padding: 10px;
             text-align: center;
             border: 1px solid #333;
-            font-size: 15px;
+            font-size: 14px;
             transition: background-color 0.5s ease;
         }
         th {
@@ -67,57 +67,54 @@
         label { font-size: 14px; color: #ccc; }
         .sync-status { text-align: right; color: #888; font-size: 12px; margin-top: 5px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 
-        /* === 裝備出貨優先順序表：縮小優化版樣式 === */
+        /* === 裝備出貨優先順序表：極致縮小優化版 === */
         .equip-table td {
             text-align: left;
-            padding-left: 20px;
+            padding-left: 15px;
         }
         .equip-table th, 
         .equip-table td {
-            padding: 6px 10px;
-            font-size: 13px;
+            padding: 4px 8px;
+            font-size: 12px;
         }
         .equip-tag {
-            background-color: #333;
+            background-color: #252525;
             color: #ffd700;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-right: 4px;
-            border: 1px solid #555;
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin-right: 3px;
+            border: 1px solid #444;
             display: inline-flex;
             align-items: center;
-            margin-top: 2px;
-            margin-bottom: 2px;
-            font-size: 13px;
+            margin-top: 1px;
+            margin-bottom: 1px;
+            font-size: 12px;
         }
         .tag-del-btn {
-            margin-left: 4px;
+            margin-left: 3px;
             color: #ff4444;
             cursor: pointer;
             font-weight: bold;
             font-size: 11px;
-            padding: 0 2px;
-            border-radius: 2px;
-            transition: background 0.2s;
+            padding: 0 1px;
         }
         .tag-del-btn:hover {
-            background-color: #ff4444;
-            color: #fff;
+            color: #ff8888;
         }
         
-        /* 可編輯欄位的共同樣式 */
-        .editable-date, .editable-boss-name {
+        /* 可編輯欄位樣式（整合王怪與裝備日期） */
+        .editable-date, .editable-boss-name, .editable-time {
             color: #ffaa00;
             font-weight: bold;
             cursor: pointer;
-            padding: 2px 6px;
+            padding: 2px 5px;
             border-radius: 4px;
             border: 1px dashed #555;
             background-color: #252525;
             display: inline-block;
             transition: all 0.2s;
         }
-        .editable-date:hover, .editable-boss-name:hover {
+        .editable-date:hover, .editable-boss-name:hover, .editable-time:hover {
             background-color: #ffd700;
             color: #000;
             border-color: #ffd700;
@@ -150,9 +147,9 @@
         <table class="equip-table" style="margin-top: 10px; margin-bottom: 10px;">
             <thead>
                 <tr>
-                    <th style="width: 140px; text-align: center;">順序 / 日期 (可改)</th>
+                    <th style="width: 110px; text-align: center;">順序 / 日期 (可改)</th>
                     <th>預配裝備項目 (支援 Ctrl+F 搜尋)</th>
-                    <th style="width: 100px; text-align: center;">操作</th>
+                    <th style="width: 80px; text-align: center;">操作</th>
                 </tr>
             </thead>
             <tbody id="equipTableBody">
@@ -210,8 +207,18 @@
 
         let bossList = [];
         let equipList = []; 
+        let isUserEditing = false; 
 
-        // 終極數字提取法
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         function getMonthDayKey(str) {
             if (!str) return '';
             let clean = str.toString().replace(/\s+/g, '');
@@ -230,7 +237,6 @@
             return clean;
         }
 
-        // 排序與渲染裝備表
         function renderEquipTable() {
             const tbody = document.getElementById('equipTableBody');
             if (!tbody) return;
@@ -241,7 +247,6 @@
                 return;
             }
 
-            // 依日期從舊到新排序
             equipList.sort((a, b) => {
                 const parseToTimestamp = (dateStr) => {
                     if (!dateStr) return Infinity;
@@ -272,25 +277,25 @@
                 if (validItems.length === 0) return;
 
                 const tagsHtml = validItems.map((item, itemIndex) => {
-                    return '<span class="equip-tag">' + item + 
-                           '<span class="tag-del-btn" onclick="deleteSingleItem(window.event, ' + rowIndex + ', ' + itemIndex + ', \'' + item + '\')">×</span>' + 
+                    let escapedItem = escapeHtml(item);
+                    return '<span class="equip-tag">' + escapedItem + 
+                           '<span class="tag-del-btn" onclick="deleteSingleItem(window.event, ' + rowIndex + ', ' + itemIndex + ', \'' + escapedItem.replace(/'/g, "\\'") + '\')">×</span>' + 
                            '</span>';
                 }).join('');
                 
                 tr.innerHTML = `
                     <td style="text-align: center;">
-                        <span class="editable-date" onclick="editEquipDate(${rowIndex}, this)">${displayDate}</span>
+                        <span class="editable-date" onclick="editEquipDate(${rowIndex}, this)">${escapeHtml(displayDate)}</span>
                     </td>
                     <td>${tagsHtml}</td>
-                    <td style="text-align: center; padding-left: 0;">
-                        <button class="btn btn-danger btn-sm" onclick="deleteEquipRow(${rowIndex})">整列刪除</button>
+                    <td style="text-align: center; padding: 2px;">
+                        <button class="btn btn-danger btn-sm" style="padding: 2px 6px; font-size: 11px;" onclick="deleteEquipRow(${rowIndex})">刪除</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        // 同步裝備資料到雲端
         async function saveEquipsToCloud() {
             const statusEl = document.getElementById('syncStatus');
             if (statusEl) statusEl.innerText = '⏳ 正在同步裝備至雲端...';
@@ -307,13 +312,10 @@
             }
         }
 
-        // 單個刪除裝備
         function deleteSingleItem(e, rowIndex, itemIndex, itemName) {
-            if (e && e.stopPropagation) {
-                e.stopPropagation();
-            } else if (window.event) {
-                window.event.cancelBubble = true;
-            }
+            if (e && e.stopPropagation) { e.stopPropagation(); } 
+            else if (window.event) { window.event.cancelBubble = true; }
+            isUserEditing = true;
             if (confirm('確定要刪除裝備【' + itemName + '】嗎？')) {
                 equipList[rowIndex].items.splice(itemIndex, 1);
                 if (equipList[rowIndex].items.length === 0) {
@@ -322,9 +324,9 @@
                 renderEquipTable();
                 saveEquipsToCloud();
             }
+            isUserEditing = false;
         }
 
-        // 追加裝備
         function addEquipRow() {
             const dateInput = document.getElementById('newEquipDate').value.trim();
             const itemsInput = document.getElementById('newEquipItems').value.trim();
@@ -346,23 +348,24 @@
                 equipList.push({ date: searchKey, items: newItems });
             }
 
-            document.getElementById('newEquipDate').value = '';
             document.getElementById('newEquipItems').value = '';
+            setDefaultTimes(); 
             renderEquipTable();
             saveEquipsToCloud();
         }
 
-        // 整列刪除
         function deleteEquipRow(index) {
+            isUserEditing = true;
             if (confirm('確定要刪除此日期整列的裝備記錄嗎？')) {
                 equipList.splice(index, 1);
                 renderEquipTable();
                 saveEquipsToCloud();
             }
+            isUserEditing = false;
         }
 
-        // 修改日期
         function editEquipDate(index, element) {
+            isUserEditing = true;
             const currentDate = element.innerText;
             const newDate = prompt("請修改此裝備組的日期：", currentDate);
             if (newDate !== null) {
@@ -373,10 +376,11 @@
                     saveEquipsToCloud();
                 }
             }
+            isUserEditing = false;
         }
 
-        // 讀取雲端所有資料
         async function fetchCloudData() {
+            if (isUserEditing) return; 
             const statusEl = document.getElementById('syncStatus');
             try {
                 const res = await fetch(`${GAS_WEB_APP_URL}?action=read`);
@@ -415,8 +419,12 @@
             const day = String(now.getDate()).padStart(2, '0');
             const hrs = String(now.getHours()).padStart(2, '0');
             const mins = String(now.getMinutes()).padStart(2, '0');
+            
             const killTimeInput = document.getElementById('killTime');
             if (killTimeInput) killTimeInput.value = `${year}-${month}-${day}T${hrs}:${mins}`;
+
+            const equipDateInput = document.getElementById('newEquipDate');
+            if (equipDateInput) equipDateInput.value = `${now.getMonth() + 1}/${now.getDate()}`;
         }
 
         async function saveToCloud(action, bossData) {
@@ -451,6 +459,7 @@
 
             const existingBoss = bossList.find(b => b.name === name);
             if (existingBoss) {
+                isUserEditing = true;
                 if (confirm(`⚠️ 偵測到已有相同的 BOSS 名稱【${name}】！\n是否要覆蓋時間？`)) {
                     existingBoss.lastKill = killTimestamp;
                     existingBoss.nextRespawn = respawnTimestamp;
@@ -458,8 +467,12 @@
                     existingBoss.cdM = cdM;
                     saveToCloud('update', existingBoss);
                     clearInputs();
+                    isUserEditing = false;
                     return;
-                } else { return; }
+                } else { 
+                    isUserEditing = false;
+                    return; 
+                }
             }
 
             const bossData = { id: Date.now(), name: name, lastKill: killTimestamp, nextRespawn: respawnTimestamp, cdH: cdH, cdM: cdM };
@@ -469,6 +482,7 @@
 
         // 修改王怪名稱功能
         function editBossName(id, currentName) {
+            isUserEditing = true;
             const newName = prompt("請輸入新的王怪名稱：", currentName);
             if (newName !== null) {
                 const trimmed = newName.trim();
@@ -480,10 +494,12 @@
                     }
                 }
             }
+            isUserEditing = false;
         }
 
         // 手動修改預計重生時間功能
         function editRespawnTime(id, currentTimestamp) {
+            isUserEditing = true;
             const currentStr = format24Hour(currentTimestamp, false);
             const newTimeStr = prompt("請直接手動修改【預計重生時間】\n格式範例: 06/10 18:30", currentStr);
             if (newTimeStr !== null) {
@@ -500,6 +516,7 @@
                     } else { alert('時間解析錯誤，請重試！'); }
                 } else { alert('格式不正確！請務必依照【月份/日期 小時:分鐘】格式輸入，例如: 06/10 18:30'); }
             }
+            isUserEditing = false;
         }
 
         function clearInputs() {
@@ -522,9 +539,11 @@
         }
 
         function deleteBoss(id) {
+            isUserEditing = true;
             if(confirm('確定刪除此隻王怪嗎？')) {
                 saveToCloud('delete', { id: id });
             }
+            isUserEditing = false;
         }
 
         function renderTable() {
@@ -538,12 +557,17 @@
                 tr.id = `boss-row-${boss.id}`;
                 const killTimeStr = format24Hour(boss.lastKill, true);
                 const respawnTimeStr = format24Hour(boss.nextRespawn, false);
+                let escapedName = escapeHtml(boss.name);
 
                 tr.innerHTML = `
-                    <td><span class="editable-boss-name" onclick="editBossName(${boss.id}, '${boss.name.replace(/'/g, "\\'")}')">${boss.name}</span></td>
-                    <td>${boss.cdH}時${boss.cdM}分</td>
+                    <td>
+                        <span class="editable-boss-name" onclick="editBossName(${boss.id}, '${escapedName.replace(/'/g, "\\'")}')">${escapedName}</span>
+                    </td>
+                    <td>${parseInt(boss.cdH, 10)}時${parseInt(boss.cdM, 10)}分</td>
                     <td>${killTimeStr}</td>
-                    <td><span class="editable-boss-name" style="color: #ffd700;" onclick="editRespawnTime(${boss.id}, ${boss.nextRespawn})">${respawnTimeStr}</span></td>
+                    <td>
+                        <span class="editable-time" onclick="editRespawnTime(${boss.id}, ${boss.nextRespawn})">${respawnTimeStr}</span>
+                    </td>
                     <td id="timer-${boss.id}">--</td>
                     <td id="status-${boss.id}">--</td>
                     <td>
@@ -591,11 +615,10 @@
             });
         }
 
-        // 初始化
         setDefaultTimes();
         fetchCloudData(); 
-        setInterval(updateTimers, 1000);
-        setInterval(fetchCloudData, 5000); 
+        setInterval(updateTimers, 1000);     
+        setInterval(fetchCloudData, 5000);  
     </script>
 </body>
 </html>
