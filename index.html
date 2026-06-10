@@ -67,30 +67,36 @@
         label { font-size: 14px; color: #ccc; }
         .sync-status { text-align: right; color: #888; font-size: 12px; margin-top: 5px; }
 
+        /* === 裝備出貨優先順序表：縮小優化版樣式 === */
         .equip-table td {
             text-align: left;
             padding-left: 20px;
         }
+        .equip-table th, 
+        .equip-table td {
+            padding: 6px 10px;
+            font-size: 13px;
+        }
         .equip-tag {
             background-color: #333;
             color: #ffd700;
-            padding: 4px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
-            margin-right: 8px;
+            margin-right: 4px;
             border: 1px solid #555;
             display: inline-flex;
             align-items: center;
-            margin-top: 4px;
-            margin-bottom: 4px;
-            font-size: 14px;
+            margin-top: 2px;
+            margin-bottom: 2px;
+            font-size: 13px;
         }
         .tag-del-btn {
-            margin-left: 6px;
+            margin-left: 4px;
             color: #ff4444;
             cursor: pointer;
             font-weight: bold;
-            font-size: 12px;
-            padding: 0 4px;
+            font-size: 11px;
+            padding: 0 2px;
             border-radius: 2px;
             transition: background 0.2s;
         }
@@ -98,18 +104,20 @@
             background-color: #ff4444;
             color: #fff;
         }
-        .editable-date {
+        
+        /* 可編輯欄位的共同樣式 */
+        .editable-date, .editable-boss-name {
             color: #ffaa00;
             font-weight: bold;
             cursor: pointer;
-            padding: 4px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
             border: 1px dashed #555;
             background-color: #252525;
             display: inline-block;
             transition: all 0.2s;
         }
-        .editable-date:hover {
+        .editable-date:hover, .editable-boss-name:hover {
             background-color: #ffd700;
             color: #000;
             border-color: #ffd700;
@@ -120,7 +128,6 @@
 
     <h1>⚔️ TMD我來了 - 血盟王表倒數器 ⚔️</h1>
 
-    <!-- 裝備出貨優先順序表 -->
     <div class="form-group">
         <h3>💎 裝備出貨優先順序表 (雲端同步版：時間越久越往上，點擊裝備旁的 x 可單獨刪除)</h3>
         <table class="equip-table" style="margin-top: 10px; margin-bottom: 10px;">
@@ -136,10 +143,9 @@
             </tbody>
         </table>
 
-        <!-- 快速追加裝備的輸入列 -->
         <div class="input-row" style="border-top: 1px solid #333; padding-top: 12px; margin-top: 12px;">
             <b style="color: #ffd700;">➕ 快速追加裝備：</b>
-            <input type="text" id="newEquipDate" placeholder="例如: 6/6" style="width: 80px; text-align: center;">
+            <input type="text" id="newEquipDate" placeholder="例如: 6/10" style="width: 80px; text-align: center;">
             <input type="text" id="newEquipItems" placeholder="輸入裝備名稱 (多個請用頓號或逗號隔開，如：泰坦皮帶)" style="flex: 1; min-width: 250px;">
             <button class="btn btn-sm" onclick="addEquipRow()">確認追加</button>
         </div>
@@ -165,7 +171,7 @@
     <table>
         <thead>
             <tr>
-                <th>BOSS名稱</th>
+                <th>BOSS名稱 (可改)</th>
                 <th>重生週期</th>
                 <th>上次擊殺時間</th>
                 <th>預計重生時間</th>
@@ -175,8 +181,7 @@
             </tr>
         </thead>
         <tbody id="bossTableBody">
-            <!-- 雲端資料載入 -->
-        </tbody>
+            </tbody>
     </table>
 
     <script>
@@ -186,8 +191,23 @@
         let bossList = [];
         let equipList = []; 
 
-        function normalizeDateStr(str) {
-            return str.toString().replace(/\s+/g, '').replace(/[.\-月]/g, '/').replace(/日/g, '');
+        // 終極數字提取法
+        function getMonthDayKey(str) {
+            if (!str) return '';
+            let clean = str.toString().replace(/\s+/g, '');
+            if (clean.includes('T')) {
+                const d = new Date(clean);
+                return isNaN(d.getTime()) ? clean : `${d.getMonth() + 1}/${d.getDate()}`;
+            }
+            clean = clean.replace(/[.\-月日\\]/g, '/');
+            const parts = clean.split('/').filter(p => p.length > 0 && !isNaN(p));
+            if (parts.length >= 3) {
+                return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
+            }
+            if (parts.length === 2) {
+                return `${parseInt(parts[0], 10)}/${parseInt(parts[1], 10)}`;
+            }
+            return clean;
         }
 
         // 排序與渲染裝備表
@@ -201,7 +221,7 @@
                 return;
             }
 
-            // 依日期從舊到新排序 (時間越久越往上)
+            // 依日期從舊到新排序
             equipList.sort((a, b) => {
                 const parseToTimestamp = (dateStr) => {
                     if (!dateStr) return Infinity;
@@ -215,30 +235,22 @@
                         const d = new Date(now.getFullYear(), parseInt(matches[1], 10) - 1, parseInt(matches[2], 10));
                         return d.getTime();
                     }
+                    const fullMatches = dateStr.toString().replace(/\s+/g, '').match(/(\d+)[/\-年](\d+)[/\-月](\d+)/);
+                    if (fullMatches) {
+                        const d = new Date(parseInt(fullMatches[1],10), parseInt(fullMatches[2],10)-1, parseInt(fullMatches[3],10));
+                        return d.getTime();
+                    }
                     return Infinity; 
                 };
                 return parseToTimestamp(a.date) - parseToTimestamp(b.date);
             });
 
             equipList.forEach((equip, rowIndex) => {
-                let displayDate = equip.date;
-                if (displayDate && displayDate.toString().includes('T')) {
-                    const d = new Date(displayDate);
-                    if (!isNaN(d.getTime())) {
-                        displayDate = (d.getMonth() + 1) + '/' + d.getDate();
-                    }
-                } else if (displayDate) {
-                    const matches = displayDate.toString().replace(/\s+/g, '').match(/^(\d+)[/\-月](\d+)/);
-                    if (matches) {
-                        displayDate = parseInt(matches[1], 10) + '/' + parseInt(matches[2], 10);
-                    }
-                }
-
+                let displayDate = getMonthDayKey(equip.date);
                 const tr = document.createElement('tr');
                 const validItems = equip.items ? equip.items.filter(item => item && item.trim().length > 0) : [];
                 if (validItems.length === 0) return;
 
-                // 修正：移除屬性中的 event 物件傳遞，改用內建處理機制防冒泡
                 const tagsHtml = validItems.map((item, itemIndex) => {
                     return '<span class="equip-tag">' + item + 
                            '<span class="tag-del-btn" onclick="deleteSingleItem(window.event, ' + rowIndex + ', ' + itemIndex + ', \'' + item + '\')">×</span>' + 
@@ -275,7 +287,7 @@
             }
         }
 
-        // 單獨刪除裝備
+        // 單舊刪除裝備
         function deleteSingleItem(e, rowIndex, itemIndex, itemName) {
             if (e && e.stopPropagation) {
                 e.stopPropagation();
@@ -303,14 +315,15 @@
             }
 
             const newItems = itemsInput.split(/[,，、\s]+/).filter(item => item.length > 0);
-            const normalizedNewDate = normalizeDateStr(dateInput);
-            const existingIndex = equipList.findIndex(e => normalizeDateStr(e.date) === normalizedNewDate);
+            const searchKey = getMonthDayKey(dateInput);
+            const existingIndex = equipList.findIndex(e => getMonthDayKey(e.date) === searchKey);
 
             if (existingIndex !== -1) {
                 let combinedItems = equipList[existingIndex].items.concat(newItems);
                 equipList[existingIndex].items = [...new Set(combinedItems)];
+                equipList[existingIndex].date = searchKey;
             } else {
-                equipList.push({ date: dateInput, items: newItems });
+                equipList.push({ date: searchKey, items: newItems });
             }
 
             document.getElementById('newEquipDate').value = '';
@@ -335,7 +348,7 @@
             if (newDate !== null) {
                 const trimmed = newDate.trim();
                 if (trimmed) {
-                    equipList[index].date = trimmed;
+                    equipList[index].date = getMonthDayKey(trimmed);
                     renderEquipTable(); 
                     saveEquipsToCloud();
                 }
@@ -434,6 +447,21 @@
             clearInputs();
         }
 
+        // 🌟 新增：修改王怪名稱功能
+        function editBossName(id, currentName) {
+            const newName = prompt("請輸入新的王怪名稱：", currentName);
+            if (newName !== null) {
+                const trimmed = newName.trim();
+                if (trimmed && trimmed !== currentName) {
+                    const boss = bossList.find(b => b.id == id);
+                    if (boss) {
+                        boss.name = trimmed;
+                        saveToCloud('update', boss);
+                    }
+                }
+            }
+        }
+
         function clearInputs() {
             document.getElementById('bossName').value = '';
             document.getElementById('cdHours').value = '';
@@ -471,8 +499,9 @@
                 const killTimeStr = format24Hour(boss.lastKill, true);
                 const respawnTimeStr = format24Hour(boss.nextRespawn, false);
 
+                // 將王怪名稱改成點擊可觸發修改的 span
                 tr.innerHTML = `
-                    <td><strong>${boss.name}</strong></td>
+                    <td><span class="editable-boss-name" onclick="editBossName(${boss.id}, '${boss.name.replace(/'/g, "\\'")}')">${boss.name}</span></td>
                     <td>${boss.cdH}時${boss.cdM}分</td>
                     <td>${killTimeStr}</td>
                     <td><span style="color: #ffd700; font-weight:bold;">${respawnTimeStr}</span></td>
